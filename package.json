@@ -1,0 +1,53 @@
+{
+  "name": "zotero-pdf-translate-uniprot-search",
+  "version": "2.4.1",
+  "description": "Translate PDF, EPub, webpage, metadata, annotations, notes to the target language. Support 20+ translate services. Integrated with UniProt protein search functionality.",
+  "config": {
+    "addonName": "Translate & UniProt Search",
+    "addonID": "zoteropdftranslateuniprotsearch@euclpts.com",
+    "addonRef": "zoteropdftranslateuniprotsearch",
+    "prefsPrefix": "extensions.zotero.ZoteroPDFTranslateUniProtSearch",
+    "addonInstance": "PDFTranslateUniProtSearch"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "zotero-plugin serve",
+    "build": "tsc --noEmit && zotero-plugin build",
+    "release": "zotero-plugin release",
+    "lint": "prettier --write . && eslint . --fix",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "update-deps": "npm update --save"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/windingwind/zotero-pdf-translate.git"
+  },
+  "author": "windingwind",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/windingwind/zotero-pdf-translate/issues"
+  },
+  "homepage": "https://github.com/windingwind/zotero-pdf-translate#readme",
+  "dependencies": {
+    "franc": "^6.2.0",
+    "iso639-js": "^1.1.3",
+    "jsencrypt": "^3.5.0",
+    "katex": "^0.16.22",
+    "zotero-plugin-toolkit": "^5.1.0-beta.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/node": "^22.16.5",
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^9.2.0",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.31.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.37.0",
+    "zotero-plugin-scaffold": "^0.8.0",
+    "zotero-types": "^4.1.0-beta.3"
+  }
+}
