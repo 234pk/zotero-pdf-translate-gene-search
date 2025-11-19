@@ -27,7 +27,7 @@ async function searchUniProt(data: Required<TranslateTask>) {
     throw new Error("Please enter a search term");
   }
 
-  // 构建查询参数，参考Chrome插件的语法
+  // 参考Chrome插件，使用gene_exact查询字段以避免HTTP 400错误
   let searchQuery = `gene_exact:${encodeURIComponent(query)} AND reviewed:true`;
   
   // 如果有物种编号，添加到查询中
@@ -35,7 +35,7 @@ async function searchUniProt(data: Required<TranslateTask>) {
     searchQuery += ` AND (taxonomy_id:${data.taxonomyId})`;
   }
 
-  // 使用URLSearchParams构建URL，避免编码问题
+  // 使用URLSearchParams构建URL，参考Chrome插件的参数设置
   const searchParams = new URLSearchParams({
     query: searchQuery,
     fields: [
@@ -49,15 +49,17 @@ async function searchUniProt(data: Required<TranslateTask>) {
       "xref_refseq",
       "xref_string"
     ].join(","),
-    sort: "accession desc",
+    sort: "accession desc",  // 匹配Chrome插件的排序方式
     includeIsoform: "false",
-    format: "json",
-    size: "10"
+    size: "10"  // 移除format参数，这在API中是隐含的
   });
   
   const searchUrl = `https://rest.uniprot.org/uniprotkb/search?${searchParams}`;
 
   try {
+    // 添加调试日志
+    getZtoolkit().log("UniProt search URL:", searchUrl);
+    
     const xhr = await Zotero.HTTP.request(
       "GET",
       searchUrl,
@@ -66,16 +68,120 @@ async function searchUniProt(data: Required<TranslateTask>) {
           'Accept': 'application/json'
         },
         timeout: 15000,
-        responseType: "json"
+        responseType: "json"  // 使用json，Zotero会自动解析JSON响应
       }
     );
+
+    getZtoolkit().log("UniProt response status:", xhr?.status);
+    getZtoolkit().log("UniProt response type:", typeof xhr?.response);
 
     if (xhr?.status !== 200) {
       throw `Request error: ${xhr?.status}`;
     }
 
+    // 检查响应是否存在且有效
+    if (!xhr.response) {
+      throw "Empty response from UniProt API";
+    }
+
+    // 响应已经是解析后的JSON对象
+    const responseData = xhr.response;
+    getZtoolkit().log("UniProt API response structure:", responseData);
+
+    // 检查响应是否有results字段
+    if (!responseData.results) {
+      // 尝试直接使用响应作为结果（如果API结构发生变化）
+      const results = Array.isArray(responseData) ? responseData : [];
+      data.result = await formatResultsAsHTML(results, query);
+      return;
+    }
+
+    // 参考Chrome插件的重试逻辑
+    const results = responseData.results;
+    
+    // 如果有物种筛选但没有结果，尝试搜索所有物种
+    if (data.taxonomyId && (!results || results.length === 0)) {
+      getZtoolkit().log("No results for specific taxonomy, searching all species...");
+      
+      // 搜索所有物种（reviewed:true），使用gene_exact保持一致性
+      const unknownSearchParams = new URLSearchParams(searchParams);
+      const unknownQuery = `gene_exact:${encodeURIComponent(query)} AND reviewed:true`;
+      unknownSearchParams.set('query', unknownQuery);
+      const unknownUrl = `https://rest.uniprot.org/uniprotkb/search?${unknownSearchParams}`;
+      
+      try {
+        const unknownXhr = await Zotero.HTTP.request("GET", unknownUrl, {
+          headers: { 'Accept': 'application/json' },
+          timeout: 15000,
+          responseType: "json"
+        });
+        
+        if (unknownXhr?.status === 200 && unknownXhr.response) {
+          const unknownData = unknownXhr.response;
+          let unknownResults = unknownData.results || [];
+          
+          // 如果reviewed:true没有结果，尝试reviewed:false
+          if (unknownResults.length === 0) {
+            const retrySearchParams = new URLSearchParams(unknownSearchParams);
+            const retryQuery = `gene_exact:${encodeURIComponent(query)} AND reviewed:false`;
+            retrySearchParams.set('query', retryQuery);
+            const retryUrl = `https://rest.uniprot.org/uniprotkb/search?${retrySearchParams}`;
+            
+            const retryXhr = await Zotero.HTTP.request("GET", retryUrl, {
+              headers: { 'Accept': 'application/json' },
+              timeout: 15000,
+              responseType: "json"
+            });
+            
+            if (retryXhr?.status === 200 && retryXhr.response) {
+              const retryData = retryXhr.response;
+              if (retryData.results && retryData.results.length > 0) {
+                unknownResults = retryData.results.slice(0, 10);
+              }
+            }
+          }
+          
+          const noResultHtml = `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin-bottom: 15px; background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%); padding: 10px; border-radius: 10px; border: 1px solid #ffb3b3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"><p style="color: red; font-weight: bold;">该物种无该蛋白，正在搜索所有物种...</p></div>`;
+          const resultHtml = await formatResultsAsHTML(unknownResults, query);
+          data.result = noResultHtml + resultHtml;
+          return;
+        }
+      } catch (retryError) {
+        getZtoolkit().log("Retry search error:", retryError);
+        // 继续使用原始结果
+      }
+    }
+
+    // 如果没有物种筛选但没有结果，尝试reviewed:false
+    if (!data.taxonomyId && (!results || results.length === 0)) {
+      getZtoolkit().log("No results for reviewed:true, trying reviewed:false...");
+      
+      const retrySearchParams = new URLSearchParams(searchParams);
+      const retryQuery = `gene:${encodeURIComponent(query)} AND reviewed:false`;
+      retrySearchParams.set('query', retryQuery);
+      const retryUrl = `https://rest.uniprot.org/uniprotkb/search?${retrySearchParams}`;
+      
+      try {
+        const retryXhr = await Zotero.HTTP.request("GET", retryUrl, {
+          headers: { 'Accept': 'application/json' },
+          timeout: 15000,
+          responseType: "json"
+        });
+        
+        if (retryXhr?.status === 200 && retryXhr.response) {
+          const retryData = retryXhr.response;
+           const retryResults = retryData.results || [];
+           data.result = await formatResultsAsHTML(retryResults, query);
+           return;
+        }
+      } catch (retryError) {
+        getZtoolkit().log("Retry search error:", retryError);
+        // 继续使用原始结果
+      }
+    }
+
     // 使用HTML格式化结果，参考Chrome插件的格式
-    data.result = formatResultsAsHTML(xhr.response.results || [], query);
+    data.result = await formatResultsAsHTML(results, query);
   } catch (error) {
     getZtoolkit().log("UniProt search error:", error);
     throw error;
@@ -103,102 +209,29 @@ function parseUniProtResults(data: any): UniProtSearchResult[] {
 }
 
 // 参考Chrome插件的HTML格式化方式
-function formatResultsAsHTML(results: any[], query: string): string {
-  if (results.length === 0) {
-    return `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin-bottom: 15px; background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%); padding: 10px; border-radius: 10px; border: 1px solid #ffb3b3; box-shadow: 0 2px 4px rgba(0,0,0,0.05); max-width: 100%; overflow: hidden; box-sizing: border-box;">
-      <p style="color: red; font-weight: bold;">No UniProt results found for: ${query}</p>
-    </div>`;
-  }
-
-  // 单个结果使用详细格式，参考Chrome插件的single-result-template
-  if (results.length === 1) {
-    const result = results[0];
-    const proteinName = extractProteinName(result);
-    const description = extractDescription(result);
-    const organism = extractOrganism(result);
-    const refSeqInfo = extractRefSeqInfo(result);
-    const stringIdLink = extractStringId(result);
-    const subcellularLocation = extractSubcellularLocation(result);
-    const { bioGridIdLink, flyBaseIdLink } = extractDatabaseLinks(result);
-    const accession = result.primaryAccession || '';
-    const url = `https://www.uniprot.org/uniprot/${accession}`;
-    
-    return `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; background: linear-gradient(135deg, #cce0ff 0%, #b3d9ff 100%); border-radius: 10px; padding: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.1); margin-bottom: 15px; width: 200px; overflow: hidden; box-sizing: border-box;">
-      <h3 style="color: #2a5db0; text-align: center; margin-top: 0;">UniProt Search Result</h3>
-      <p><strong>Accession:</strong> <a href="${url}" target="_blank">${accession}</a></p>
-      <p><strong>Protein Name:</strong> ${proteinName}</p>
-      <p><strong>Organism:</strong> ${organism}</p>
-      <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; word-break: break-all;"><strong>FlyBase:</strong> ${flyBaseIdLink}</div>
-        <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; word-break: break-all;"><strong>BioGRID:</strong> ${bioGridIdLink}</div>
-        <div style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; word-break: break-all;"><strong>STRING:</strong> ${stringIdLink}</div>
-      </div>
-      <p><strong>细胞定位:</strong> <span style="background: linear-gradient(135deg, #fff0f7 0%, #ffe6f2 100%); padding: 5px 10px; border-radius: 6px; border: 1px solid #ffb3d9; display: inline-block; width: 200px; overflow: hidden; text-overflow: ellipsis; word-break: break-all;">${subcellularLocation}</span></p>
-      <div style="display: flex; align-items: center;"><strong>RefSeq:</strong> <span class="toggle-refseq" data-target="refseq-single">展开</span></div>
-      <div id="refseq-single" style="background: linear-gradient(135deg, #f0fff0 0%, #e6ffe6 100%); padding: 10px; border-radius: 6px; margin-top: 5px; border: 1px solid #b3ffb3; display: none; width: 200px; overflow: hidden; word-break: break-all;">
-        ${refSeqInfo}
-      </div>
-      <p><strong>Function:</strong></p>
-      <div style="background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%); padding: 10px; border-radius: 6px; margin-top: 5px; border: 1px solid #b3d1ff; width: 200px; overflow: hidden; word-break: break-all;">
-        ${description}
-      </div>
-    </div>`;
-  }
-
-  // 多个结果使用垂直列表布局，优化为长条形
-  let html = `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin-bottom: 15px; background: linear-gradient(135deg, #e6f7ff 0%, #d1ecff 100%); padding: 8px 15px; border-radius: 8px; border: 1px solid #b3d9ff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); width: 200px; overflow: hidden; box-sizing: border-box;">
-    <h3 style="color: #2a5db0; text-align: center; margin: 5px 0; font-size: 16px;">UniProt Search Results (${results.length})</h3>
-  </div>
-  <div style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 5px; width: 200px; overflow-x: hidden; box-sizing: border-box;">`;
+async function formatResultsAsHTML(results: any[], query: string): Promise<string> {
+    if (results.length === 0) {
+     return 'No UniProt results found';
+    }
   
-  results.forEach((result, index) => {
-    const proteinName = extractProteinName(result);
-    const description = extractDescription(result);
-    const organism = extractOrganism(result);
-    const refSeqInfo = extractRefSeqInfo(result);
-    const stringIdLink = extractStringId(result);
-    const subcellularLocation = extractSubcellularLocation(result);
-    const { bioGridIdLink, flyBaseIdLink } = extractDatabaseLinks(result);
-    const accession = result.primaryAccession || '';
-    const url = `https://www.uniprot.org/uniprot/${accession}`;
-    
-    html += `<div style="background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%); border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #b3d1ff; margin-bottom: 0; width: 200px; overflow: hidden; box-sizing: border-box;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 0; overflow: hidden;">
-          <p style="margin: 0 0 4px 0; font-size: 14px; word-break: break-all;"><strong>Accession:</strong> <a href="${url}" target="_blank" style="color: #2a5db0; text-decoration: none;">${accession}</a></p>
-          <p style="margin: 0 0 4px 0; font-size: 14px; word-break: break-all;"><strong>Protein:</strong> ${proteinName}</p>
-          <p style="margin: 0 0 8px 0; font-size: 13px; color: #666; word-break: break-all;"><strong>Organism:</strong> ${organism}</p>
+    // 保留重要信息和超链接，同时保持简洁格式
+    return results.map((result, index) => {
+      const proteinName = extractProteinName(result);
+      const organism = extractOrganism(result);
+      const accession = result.primaryAccession || '';
+      const description = extractDescription(result);
+      const url = `https://www.uniprot.org/uniprot/${accession}`;
+      
+      return `
+        <div style="margin-bottom: 10px; padding: 8px; border-left: 3px solid #ccc;">
+          <div><strong>Accession:</strong> <a href="${url}" target="_blank">${accession}</a></div>
+          <div><strong>Protein Name:</strong> ${proteinName}</div>
+          <div><strong>Organism:</strong> ${organism}</div>
+          ${description ? `<div><strong>Function:</strong> ${description}</div>` : ''}
         </div>
-        <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end; min-width: 120px; word-break: break-all;">
-          <span style="background: linear-gradient(135deg, #fff0f7 0%, #ffe6f2 100%); padding: 3px 8px; border-radius: 4px; border: 1px solid #ffb3d9; font-size: 12px; display: inline-block; width: 200px; overflow: hidden; text-overflow: ellipsis;">${subcellularLocation}</span>
-          <button class="more-button" data-index="${index}" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-top: 4px;">More</button>
-        </div>
-      </div>
-      
-      <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; font-size: 12px; word-break: break-all;">
-        <span style="display: block; overflow: hidden; text-overflow: ellipsis;"><strong>FlyBase:</strong> ${flyBaseIdLink}</span>
-        <span style="display: block; overflow: hidden; text-overflow: ellipsis;"><strong>BioGRID:</strong> ${bioGridIdLink}</span>
-        <span style="display: block; overflow: hidden; text-overflow: ellipsis;"><strong>STRING:</strong> ${stringIdLink}</span>
-      </div>
-      
-      <div style="display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; word-break: break-all;">
-        <strong>RefSeq:</strong> <span class="toggle-refseq" data-target="refseq-${index}" style="color: #0066cc; text-decoration: underline; cursor: pointer; margin-left: 5px;">展开</span>
-      </div>
-      
-      <div id="refseq-${index}" style="background: linear-gradient(135deg, #f0fff0 0%, #e6ffe6 100%); padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid #b3ffb3; display: none; font-size: 12px; width: 200px; overflow: hidden; word-break: break-all;">
-        ${refSeqInfo}
-      </div>
-      
-      <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>Function:</strong></p>
-      <div style="background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%); padding: 8px; border-radius: 4px; border: 1px solid #b3d1ff; font-size: 12px; line-height: 1.4; width: 200px; overflow: hidden; word-break: break-all;">
-        ${description}
-      </div>
-    </div>`;
-  });
-  
-  html += '</div>';
-  return html;
-}
+      `;
+    }).join('');
+  }
 
 function extractProteinName(item: any): string {
   if (item.proteinDescription && item.proteinDescription.recommendedName) {

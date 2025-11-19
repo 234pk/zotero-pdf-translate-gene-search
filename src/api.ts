@@ -136,7 +136,8 @@ async function translate(
  */
 function getTemporaryRefreshHandler(options?: { task?: TranslateTask }) {
   const translateTask = options?.task;
-  if (translateTask && translateTask.type !== "text") {
+  // 允许uniprot类型的任务也刷新UI
+  if (translateTask && translateTask.type !== "text" && translateTask.type !== "uniprot") {
     return () => {};
   }
   const newTick = `${Zotero.Utilities.randomString()}-${Date.now()}`;

@@ -2,7 +2,7 @@ import { SVGIcon } from "../utils/config";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref, setPref } from "../utils/prefs";
-import { addTranslateTask, getLastTranslateTask } from "../utils/task";
+import { addTranslateTask, getLastTranslateTask, TranslateTask } from "../utils/task";
 import { slice } from "../utils/str";
 
 function updatePopupSize(
@@ -78,7 +78,17 @@ export function updateReaderPopup() {
     updateHidden(addToNoteButton, true);
     return;
   }
-  const task = getLastTranslateTask({ type: "text" });
+  // 获取当前活动选项卡
+  const activeTab = popup?.querySelector(`.tab-button.active`)?.getAttribute("data-tab");
+  
+  // 根据活动选项卡获取对应类型的任务
+  let task;
+  if (activeTab === "uniprot") {
+    task = getLastTranslateTask({ type: "uniprot" });
+  } else {
+    task = getLastTranslateTask({ type: "text" });
+  }
+  
   if (!task) {
     return;
   }
@@ -135,6 +145,18 @@ export function updateReaderPopup() {
     !enableAddToNote
   ) {
     updateHidden(addToNoteButton, true);
+  }
+
+  // 处理UniProt搜索结果的显示
+  const uniprotResults = popup?.querySelector(
+    `#${makeId("uniprot-results")}`,
+  ) as HTMLDivElement;
+  
+  if (uniprotResults && task.type === "uniprot") {
+    // 显示UniProt搜索结果
+    uniprotResults.innerHTML = task.result || "Search results will appear here...";
+    // 确保UniProt结果容器可见
+    uniprotResults.style.display = "block";
   }
 
   updatePopupSize(popup, textarea);
@@ -457,7 +479,7 @@ export function buildReaderPopup(
 
   // UniProt 搜索内容容器
   append(
-    (ztoolkit.UI.createElement as any)(doc, "div", {
+    (ztoolkit.UI.createElement(doc, "div", {
       children: [
         {
           tag: "div",
@@ -468,6 +490,204 @@ export function buildReaderPopup(
           },
           ignoreIfExists: true,
           children: [
+            // 搜索输入框
+            {
+              tag: "input",
+              namespace: "html",
+              id: makeId("uniprot-input"),
+              classList: [`${config.addonRef}-uniprot-input`],
+              attributes: {
+                type: "text",
+                placeholder: "Enter gene name or protein ID...",
+              },
+              styles: {
+                width: "calc(100% - 10px)",
+                padding: "5px",
+                margin: "5px",
+                border: "1px solid #ccc",
+                borderRadius: "3px",
+                fontSize: "12px",
+              },
+              properties: {
+                value: addon.data.translate.selectedText || "",
+              },
+            },
+            // 物种选择和搜索按钮容器
+            {
+              tag: "div",
+              namespace: "html",
+              styles: {
+                display: "flex",
+                justifyContent: "space-between",
+                margin: "0 5px 5px 5px",
+              },
+              children: [
+                // 物种选择下拉框
+                {
+                  tag: "select",
+                  namespace: "html",
+                  id: makeId("uniprot-species"),
+                  classList: [`${config.addonRef}-uniprot-species`],
+                  attributes: {
+                    title: "Select organism to narrow search results",
+                  },
+                  styles: {
+                    flex: "1",
+                    marginRight: "5px",
+                    padding: "5px",
+                    border: "1px solid #666",
+                    borderRadius: "3px",
+                    fontSize: "12px",
+                    backgroundColor: "white",
+                    cursor: "pointer",
+                    zIndex: "9999",
+                    position: "relative",
+                    userSelect: "none",
+                    pointerEvents: "auto",
+                    minWidth: "150px",
+                  },
+                  children: [
+                    {
+                      tag: "option",
+                      namespace: "html",
+                      attributes: {
+                        value: "",
+                      },
+                      properties: {
+                        innerHTML: "All Species",
+                      },
+                    },
+                    {
+                      tag: "option",
+                      namespace: "html",
+                      attributes: {
+                        value: "9606",
+                      },
+                      properties: {
+                        innerHTML: "Human (9606)",
+                      },
+                    },
+                    {
+                      tag: "option",
+                      namespace: "html",
+                      attributes: {
+                        value: "10090",
+                      },
+                      properties: {
+                        innerHTML: "Mouse (10090)",
+                      },
+                    },
+                    {
+                      tag: "option",
+                      namespace: "html",
+                      attributes: {
+                        value: "10116",
+                      },
+                      properties: {
+                        innerHTML: "Rat (10116)",
+                      },
+                    },
+                    {
+                      tag: "option",
+                      namespace: "html",
+                      attributes: {
+                        value: "7227",
+                      },
+                      properties: {
+                        innerHTML: "Fruit Fly (7227)",
+                      },
+                    },
+                    {
+                      tag: "option",
+                      namespace: "html",
+                      attributes: {
+                        value: "6239",
+                      },
+                      properties: {
+                        innerHTML: "C. elegans (6239)",
+                      },
+                    },
+                  ],
+                },
+                // 搜索按钮
+                {
+                  tag: "button",
+                  namespace: "html",
+                  id: makeId("uniprot-search"),
+                  classList: ["toolbar-button", `${config.addonRef}-uniprot-search`],
+                  attributes: {
+                    title: "Search UniProt",
+                  },
+                  properties: {
+                    innerHTML: "🔍 Search",
+                  },
+                  styles: {
+                    padding: "3px 8px",
+                    border: "1px solid #ccc",
+                    borderRadius: "3px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    backgroundColor: "var(--color-accent)",
+                    color: "white",
+                  },
+                  listeners: [
+                    {
+                      type: "click",
+                      listener: async (ev: Event) => {
+                        const input = popup.querySelector(`#${makeId("uniprot-input")}`) as HTMLInputElement;
+                        const species = popup.querySelector(`#${makeId("uniprot-species")}`) as HTMLSelectElement;
+                        const resultsContainer = popup.querySelector(`#${makeId("uniprot-results")}`) as HTMLDivElement;
+                        
+                        if (!input.value.trim()) {
+                          resultsContainer.innerHTML = "<p style='color: red; padding: 8px;'>Please enter a search term</p>";
+                          return;
+                        }
+                        
+                        // 显示加载状态
+                        resultsContainer.innerHTML = "<p style='padding: 8px;'>Searching UniProt...</p>";
+                        
+                        try {
+                          // 创建搜索任务
+                          const task = addTranslateTask(
+                            input.value.trim(),
+                            reader.itemID,
+                            "uniprot",
+                            "uniprot"
+                          );
+                          
+                          if (!task) {
+                            throw new Error("Failed to create search task");
+                          }
+                          
+                          // 设置taxonomyId
+                          task.taxonomyId = species.value;
+                          
+                          // 获取UI刷新处理器
+                          const refreshHandler = addon.api.getTemporaryRefreshHandler({ task });
+                          
+                          // 直接调用服务运行任务，而不是通过钩子
+                          const success = await addon.data.translate.services.runTranslationTask(task, {
+                            noCheckZoteroItemLanguage: true,
+                            noDisplay: false
+                          });
+                          
+                          if (success) {
+                            // 任务完成后刷新UI
+                            refreshHandler();
+                          } else {
+                            resultsContainer.innerHTML = `<p style='color: red; padding: 8px;'>Search failed: ${task.result || "Unknown error"}</p>`;
+                          }
+                        } catch (error) {
+                          // 错误处理
+                          resultsContainer.innerHTML = `<p style='color: red; padding: 8px;'>Search failed: ${error}</p>`;
+                        }
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            // 结果显示区域
             {
               tag: "div",
               namespace: "html",
@@ -480,6 +700,8 @@ export function buildReaderPopup(
                 wordWrap: "break-word",
                 background: "var(--color-sidepane)",
                 border: "1px solid #ccc",
+                maxHeight: "300px",
+                overflowY: "auto",
               },
               properties: {
                 innerHTML: "Search results will appear here...",
@@ -488,7 +710,7 @@ export function buildReaderPopup(
           ],
         },
       ],
-    }) as any);
+    }) as any))
 }
 
 function onTextAreaResize(ev: MouseEvent) {
