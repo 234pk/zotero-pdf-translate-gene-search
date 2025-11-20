@@ -84,7 +84,16 @@ export function updateReaderPopup() {
   // 根据活动选项卡获取对应类型的任务
   let task;
   if (activeTab === "uniprot") {
-    task = getLastTranslateTask({ type: "uniprot" });
+    // 对于UniProt搜索，获取与当前弹窗关联的最新任务
+    const popupTaskId = popup?.getAttribute("translate-task-id");
+    if (popupTaskId) {
+      // 首先尝试获取与当前弹窗关联的任务
+      task = getLastTranslateTask({ id: popupTaskId });
+    }
+    // 如果没有找到关联任务，则获取最新的UniProt任务
+    if (!task) {
+      task = getLastTranslateTask({ type: "uniprot" });
+    }
   } else {
     task = getLastTranslateTask({ type: "text" });
   }
@@ -522,92 +531,414 @@ export function buildReaderPopup(
                 margin: "0 5px 5px 5px",
               },
               children: [
-                // 物种选择下拉框
+                // 物种选择单选项容器
                 {
-                  tag: "select",
+                  tag: "div",
                   namespace: "html",
-                  id: makeId("uniprot-species"),
-                  classList: [`${config.addonRef}-uniprot-species`],
-                  attributes: {
-                    title: "Select organism to narrow search results",
-                  },
+                  id: makeId("uniprot-species-container"),
                   styles: {
-                    flex: "1",
-                    marginRight: "5px",
-                    padding: "5px",
-                    border: "1px solid #666",
-                    borderRadius: "3px",
-                    fontSize: "12px",
-                    backgroundColor: "white",
-                    cursor: "pointer",
-                    zIndex: "9999",
-                    position: "relative",
-                    userSelect: "none",
-                    pointerEvents: "auto",
-                    minWidth: "150px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "4px",
+                    marginRight: "8px",
+                    flex: "1"
                   },
                   children: [
+                    // 第一排：All, Human, Mouse
                     {
-                      tag: "option",
+                      tag: "div",
                       namespace: "html",
-                      attributes: {
-                        value: "",
+                      id: makeId("uniprot-species-row1"),
+                      styles: {
+                        display: "flex",
+                        gap: "4px",
+                        alignItems: "center"
                       },
-                      properties: {
-                        innerHTML: "All Species",
-                      },
+                      children: [
+                        {
+                          tag: "label",
+                          namespace: "html",
+                          attributes: {
+                            htmlFor: makeId("uniprot-species-all")
+                          },
+                          styles: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            backgroundColor: "var(--color-accent)",
+                            color: "white",
+                            fontSize: "12px",
+                            userSelect: "none",
+                            transition: "all 0.2s ease"
+                          },
+                          listeners: [
+                            {
+                              type: "mouseenter",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "var(--color-accent-dark)";
+                                target.style.transform = "scale(1.02)";
+                              }
+                            },
+                            {
+                              type: "mouseleave",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "var(--color-accent)";
+                                target.style.transform = "scale(1)";
+                              }
+                            }
+                          ],
+                          children: [
+                            {
+                              tag: "input",
+                              namespace: "html",
+                              id: makeId("uniprot-species-all"),
+                              attributes: {
+                                type: "radio",
+                                name: "uniprot-species",
+                                value: "",
+                                checked: true
+                              },
+                              styles: {
+                                margin: "0",
+                                transform: "scale(0.9)"
+                              }
+                            },
+                            {
+                              tag: "span",
+                              namespace: "html",
+                              properties: {
+                                innerHTML: "🌐 All"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          tag: "label",
+                          namespace: "html",
+                          attributes: {
+                            htmlFor: makeId("uniprot-species-human")
+                          },
+                          styles: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            backgroundColor: "#f0f0f0",
+                            fontSize: "12px",
+                            userSelect: "none",
+                            transition: "all 0.2s ease"
+                          },
+                          listeners: [
+                            {
+                              type: "mouseenter",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#e0e0e0";
+                                target.style.transform = "scale(1.02)";
+                              }
+                            },
+                            {
+                              type: "mouseleave",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#f0f0f0";
+                                target.style.transform = "scale(1)";
+                              }
+                            }
+                          ],
+                          children: [
+                            {
+                              tag: "input",
+                              namespace: "html",
+                              id: makeId("uniprot-species-human"),
+                              attributes: {
+                                type: "radio",
+                                name: "uniprot-species",
+                                value: "9606"
+                              },
+                              styles: {
+                                margin: "0",
+                                transform: "scale(0.9)"
+                              }
+                            },
+                            {
+                              tag: "span",
+                              namespace: "html",
+                              properties: {
+                                innerHTML: "👤 Human"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          tag: "label",
+                          namespace: "html",
+                          attributes: {
+                            htmlFor: makeId("uniprot-species-mouse")
+                          },
+                          styles: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            backgroundColor: "#f0f0f0",
+                            fontSize: "12px",
+                            userSelect: "none",
+                            transition: "all 0.2s ease"
+                          },
+                          listeners: [
+                            {
+                              type: "mouseenter",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#e0e0e0";
+                                target.style.transform = "scale(1.02)";
+                              }
+                            },
+                            {
+                              type: "mouseleave",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#f0f0f0";
+                                target.style.transform = "scale(1)";
+                              }
+                            }
+                          ],
+                          children: [
+                            {
+                              tag: "input",
+                              namespace: "html",
+                              id: makeId("uniprot-species-mouse"),
+                              attributes: {
+                                type: "radio",
+                                name: "uniprot-species",
+                                value: "10090"
+                              },
+                              styles: {
+                                margin: "0",
+                                transform: "scale(0.9)"
+                              }
+                            },
+                            {
+                              tag: "span",
+                              namespace: "html",
+                              properties: {
+                                innerHTML: "🐭 Mouse"
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     },
+                    // 第二排：Rat, Fly, Worm
                     {
-                      tag: "option",
+                      tag: "div",
                       namespace: "html",
-                      attributes: {
-                        value: "9606",
+                      id: makeId("uniprot-species-row2"),
+                      styles: {
+                        display: "flex",
+                        gap: "4px",
+                        alignItems: "center"
                       },
-                      properties: {
-                        innerHTML: "Human (9606)",
-                      },
-                    },
-                    {
-                      tag: "option",
-                      namespace: "html",
-                      attributes: {
-                        value: "10090",
-                      },
-                      properties: {
-                        innerHTML: "Mouse (10090)",
-                      },
-                    },
-                    {
-                      tag: "option",
-                      namespace: "html",
-                      attributes: {
-                        value: "10116",
-                      },
-                      properties: {
-                        innerHTML: "Rat (10116)",
-                      },
-                    },
-                    {
-                      tag: "option",
-                      namespace: "html",
-                      attributes: {
-                        value: "7227",
-                      },
-                      properties: {
-                        innerHTML: "Fruit Fly (7227)",
-                      },
-                    },
-                    {
-                      tag: "option",
-                      namespace: "html",
-                      attributes: {
-                        value: "6239",
-                      },
-                      properties: {
-                        innerHTML: "C. elegans (6239)",
-                      },
-                    },
-                  ],
+                      children: [
+                        {
+                          tag: "label",
+                          namespace: "html",
+                          attributes: {
+                            htmlFor: makeId("uniprot-species-rat")
+                          },
+                          styles: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            backgroundColor: "#f0f0f0",
+                            fontSize: "12px",
+                            userSelect: "none",
+                            transition: "all 0.2s ease"
+                          },
+                          listeners: [
+                            {
+                              type: "mouseenter",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#e0e0e0";
+                                target.style.transform = "scale(1.02)";
+                              }
+                            },
+                            {
+                              type: "mouseleave",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#f0f0f0";
+                                target.style.transform = "scale(1)";
+                              }
+                            }
+                          ],
+                          children: [
+                            {
+                              tag: "input",
+                              namespace: "html",
+                              id: makeId("uniprot-species-rat"),
+                              attributes: {
+                                type: "radio",
+                                name: "uniprot-species",
+                                value: "10116"
+                              },
+                              styles: {
+                                margin: "0",
+                                transform: "scale(0.9)"
+                              }
+                            },
+                            {
+                              tag: "span",
+                              namespace: "html",
+                              properties: {
+                                innerHTML: "🐀 Rat"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          tag: "label",
+                          namespace: "html",
+                          attributes: {
+                            htmlFor: makeId("uniprot-species-fly")
+                          },
+                          styles: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            backgroundColor: "#f0f0f0",
+                            fontSize: "12px",
+                            userSelect: "none",
+                            transition: "all 0.2s ease"
+                          },
+                          listeners: [
+                            {
+                              type: "mouseenter",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#e0e0e0";
+                                target.style.transform = "scale(1.02)";
+                              }
+                            },
+                            {
+                              type: "mouseleave",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#f0f0f0";
+                                target.style.transform = "scale(1)";
+                              }
+                            }
+                          ],
+                          children: [
+                            {
+                              tag: "input",
+                              namespace: "html",
+                              id: makeId("uniprot-species-fly"),
+                              attributes: {
+                                type: "radio",
+                                name: "uniprot-species",
+                                value: "7227"
+                              },
+                              styles: {
+                                margin: "0",
+                                transform: "scale(0.9)"
+                              }
+                            },
+                            {
+                              tag: "span",
+                              namespace: "html",
+                              properties: {
+                                innerHTML: "🪰 Fly"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          tag: "label",
+                          namespace: "html",
+                          attributes: {
+                            htmlFor: makeId("uniprot-species-worm")
+                          },
+                          styles: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            backgroundColor: "#f0f0f0",
+                            fontSize: "12px",
+                            userSelect: "none",
+                            transition: "all 0.2s ease"
+                          },
+                          listeners: [
+                            {
+                              type: "mouseenter",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#e0e0e0";
+                                target.style.transform = "scale(1.02)";
+                              }
+                            },
+                            {
+                              type: "mouseleave",
+                              listener: (ev: Event) => {
+                                const target = ev.target as HTMLElement;
+                                target.style.backgroundColor = "#f0f0f0";
+                                target.style.transform = "scale(1)";
+                              }
+                            }
+                          ],
+                          children: [
+                            {
+                              tag: "input",
+                              namespace: "html",
+                              id: makeId("uniprot-species-worm"),
+                              attributes: {
+                                type: "radio",
+                                name: "uniprot-species",
+                                value: "6239"
+                              },
+                              styles: {
+                                margin: "0",
+                                transform: "scale(0.9)"
+                              }
+                            },
+                            {
+                              tag: "span",
+                              namespace: "html",
+                              properties: {
+                                innerHTML: "🐛 Worm"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
                 },
                 // 搜索按钮
                 {
@@ -635,7 +966,7 @@ export function buildReaderPopup(
                       type: "click",
                       listener: async (ev: Event) => {
                         const input = popup.querySelector(`#${makeId("uniprot-input")}`) as HTMLInputElement;
-                        const species = popup.querySelector(`#${makeId("uniprot-species")}`) as HTMLSelectElement;
+                        const speciesButton = popup.querySelector(`#${makeId("uniprot-species")}`) as HTMLButtonElement;
                         const resultsContainer = popup.querySelector(`#${makeId("uniprot-results")}`) as HTMLDivElement;
                         
                         if (!input.value.trim()) {
@@ -647,32 +978,47 @@ export function buildReaderPopup(
                         resultsContainer.innerHTML = "<p style='padding: 8px;'>Searching UniProt...</p>";
                         
                         try {
-                          // 创建搜索任务
+                          // 获取选中的物种信息
+                          const selectedSpecies = popup.querySelector(`input[name="uniprot-species"]:checked`) as HTMLInputElement;
+                          const taxonomyId = selectedSpecies ? selectedSpecies.value : "";
+                          
+                          // 调试日志：验证物种信息传递
+                          ztoolkit.log("Selected species:", selectedSpecies?.value, "taxonomyId:", taxonomyId);
+                          
+                          // 创建搜索任务（包含taxonomyId）
                           const task = addTranslateTask(
                             input.value.trim(),
                             reader.itemID,
                             "uniprot",
-                            "uniprot"
+                            "uniprot",
+                            taxonomyId
                           );
                           
                           if (!task) {
                             throw new Error("Failed to create search task");
                           }
                           
-                          // 设置taxonomyId
-                          task.taxonomyId = species.value;
-                          
-                          // 获取UI刷新处理器
-                          const refreshHandler = addon.api.getTemporaryRefreshHandler({ task });
+                          // 将任务ID与当前弹窗关联，确保刷新时显示正确的搜索结果
+                          popup.setAttribute("translate-task-id", task.id);
                           
                           // 直接调用服务运行任务，而不是通过钩子
+                          // 对于UniProt搜索任务，禁用缓存以确保每次搜索都重新执行
                           const success = await addon.data.translate.services.runTranslationTask(task, {
                             noCheckZoteroItemLanguage: true,
-                            noDisplay: false
+                            noDisplay: false,
+                            noCache: true  // 禁用缓存，确保每次搜索都重新执行
                           });
                           
                           if (success) {
-                            // 任务完成后刷新UI
+                            // 任务完成后直接更新结果容器，确保结果正确显示
+                            if (task.result) {
+                              resultsContainer.innerHTML = task.result;
+                            } else {
+                              resultsContainer.innerHTML = "<p style='padding: 8px;'>Search completed but no results found.</p>";
+                            }
+                            
+                            // 同时调用刷新处理器以确保UI状态正确更新
+                            const refreshHandler = addon.api.getTemporaryRefreshHandler({ task });
                             refreshHandler();
                           } else {
                             resultsContainer.innerHTML = `<p style='color: red; padding: 8px;'>Search failed: ${task.result || "Unknown error"}</p>`;

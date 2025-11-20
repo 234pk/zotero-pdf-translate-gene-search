@@ -154,6 +154,7 @@ export function addTranslateTask(
   itemId?: number,
   type?: TranslateTask["type"],
   service?: string,
+  taxonomyId?: string,
 ) {
   if (!raw) {
     return;
@@ -191,6 +192,7 @@ export function addTranslateTask(
     itemId,
     status: "waiting",
     extraTasks: [],
+    taxonomyId,
   };
 
   if (!service) {

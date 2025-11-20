@@ -1,13 +1,13 @@
 {
   "name": "zotero-pdf-translate-uniprot-search",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "Translate PDF, EPub, webpage, metadata, annotations, notes to the target language. Support 20+ translate services. Integrated with UniProt protein search functionality.",
   "config": {
     "addonName": "Translate & UniProt Search",
-    "addonID": "zoteropdftranslateuniprotsearch@euclpts.com",
-    "addonRef": "zoteropdftranslateuniprotsearch",
-    "prefsPrefix": "extensions.zotero.ZoteroPDFTranslateUniProtSearch",
-    "addonInstance": "PDFTranslateUniProtSearch"
+    "addonID": "translate-uniprot-search@windingwind.github.io",
+    "addonRef": "uniprot-search",
+    "prefsPrefix": "extensions.zotero.UniProtSearch",
+    "addonInstance": "UniProtSearch"
   },
   "main": "src/index.ts",
   "scripts": {

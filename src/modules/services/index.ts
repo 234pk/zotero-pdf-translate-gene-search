@@ -247,7 +247,9 @@ export class TranslationServices {
           _t.raw === task!.raw &&
           _t.service === task!.service &&
           (!task.langfrom || _t.langfrom === task.langfrom) &&
-          (!task.langto || _t.langto === task.langto)
+          (!task.langto || _t.langto === task.langto) &&
+          // 对于UniProt搜索任务，还需要检查taxonomyId是否相同
+          (task.type !== "uniprot" || _t.taxonomyId === task.taxonomyId)
         );
       });
 

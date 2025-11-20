@@ -6,6 +6,9 @@ import { setServiceSecret, validateServiceSecret } from "../utils/secret";
 import { createServiceSettingsDialog } from "../utils";
 import { services } from "./services";
 
+// 添加rootURI定义，使用chrome URI格式
+const rootURI = `chrome://${config.addonRef}/`;
+
 export function registerPrefsWindow() {
   Zotero.PreferencePanes.register({
     pluginID: config.addonID,
@@ -210,6 +213,134 @@ function buildPrefsPane() {
     .querySelector(`#${makeId("useWordService")}`)
     ?.addEventListener("command", (e: Event) => {
       onPrefsEvents("setUseWordService");
+    });
+
+  doc
+    .querySelector(`#${makeId("enableHidePopupTextarea")}`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setEnableHidePopupTextarea");
+    });
+
+  doc
+    .querySelector(`#${makeId("enableNoteReplaceMode")}`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setEnableNoteReplaceMode");
+    });
+
+  doc
+    .querySelector(`#${makeId("attachPaperContext")}`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setAttachPaperContext");
+    });
+
+  doc
+    .querySelector(`#${makeId("enableMathRendering")}`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setEnableMathRendering");
+    });
+
+  doc
+    .querySelector(`#${makeId("stripEmptyLines")}`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setStripEmptyLines");
+    });
+
+  doc
+    .querySelector(`#${makeId("enableAutoDetectLanguage")}`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setEnableAutoDetectLanguage");
+    });
+
+  // 界面设置复选框事件绑定
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showItemMenuTitleTranslation"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowItemMenuTitleTranslation");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showItemMenuAbstractTranslation"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowItemMenuAbstractTranslation");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showSidebarEngine"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowSidebarEngine");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showSidebarLanguage"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowSidebarLanguage");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showSidebarRaw"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowSidebarRaw");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.rawResultOrder"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setRawResultOrder");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showSidebarSettings"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowSidebarSettings");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showSidebarConcat"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowSidebarConcat");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.enableConcatKey"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setEnableConcatKey");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showSidebarCopy"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowSidebarCopy");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showItemBoxTitleTranslation"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowItemBoxTitleTranslation");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.showItemBoxAbstractTranslation"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setShowItemBoxAbstractTranslation");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.keepWindowTop"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setKeepWindowTop");
+    });
+
+  doc
+    .querySelector(`[preference="__prefsPrefix__.keepPopupSize"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setKeepPopupSize");
+    });
+
+  // 其他复选框事件绑定
+  doc
+    .querySelector(`[preference="__prefsPrefix__.autoPlay"]`)
+    ?.addEventListener("command", (e: Event) => {
+      onPrefsEvents("setAutoPlay");
     });
 
   doc
@@ -467,6 +598,86 @@ function onPrefsEvents(type: string, fromElement: boolean = true) {
     case "updatelineHeight":
       addon.api.getTemporaryRefreshHandler()();
       break;
+    case "setEnableHidePopupTextarea":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+    case "setEnableNoteReplaceMode":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+    case "setAttachPaperContext":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+    case "setEnableMathRendering":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+    case "setStripEmptyLines":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+    case "setEnableAutoDetectLanguage":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    // 界面设置复选框事件处理
+    case "setShowItemMenuTitleTranslation":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowItemMenuAbstractTranslation":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowSidebarEngine":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowSidebarLanguage":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowSidebarRaw":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setRawResultOrder":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowSidebarSettings":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowSidebarConcat":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setEnableConcatKey":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowSidebarCopy":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowItemBoxTitleTranslation":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setShowItemBoxAbstractTranslation":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setKeepWindowTop":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setKeepPopupSize":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
+    case "setAutoPlay":
+      addon.api.getTemporaryRefreshHandler()();
+      break;
+
     case "manageKeys":
       {
         import("../modules/settings/manageKeys").then(
